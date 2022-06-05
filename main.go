@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os/exec"
 	"strconv"
 
 	"github.com/go-redis/redis"
@@ -38,7 +39,7 @@ func Router() *mux.Router {
 	router := mux.NewRouter()
 	router.HandleFunc("/", index).Methods("GET")
 	router.HandleFunc("/addTask", addTask).Methods("GET")
-	router.HandleFunc("/executeTask", executeTask).Methods("GET")
+	//router.HandleFunc("/executeTask", executeTask).Methods("GET")
 	return router
 }
 
@@ -55,32 +56,31 @@ func addTask(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 		return
 	}
-	client.RPush("tasks", string(json))
+	client.Publish("tasks", string(json))
 }
 
 func executeTask() {
-
+	fmt.Println("starting execute task")
 	pubsub := client.PSubscribe("tasks")
 	defer pubsub.Close()
 	ch := pubsub.Channel()
 
-	for msg := range ch {
-		fmt.Println(msg.Channel)
-	}
-	/*pubsub.Channel()
-	taskStr := client.LPop("tasks").Val()
 	var task Task
-	json.Unmarshal([]byte(taskStr), &task)
-	out, err := exec.Command(task.Command, task.Argument).Output()
-	if err != nil {
-		fmt.Println(err)
+	for msg := range ch {
+		taskStr := msg.Payload
+		json.Unmarshal([]byte(taskStr), &task)
+		fmt.Printf("Running Command %s %s\n", task.Command, task.Argument)
+		out, err := exec.Command(task.Command, task.Argument).Output()
+		if err != nil {
+			fmt.Println(err)
+		}
+		fmt.Println("Results of Task:")
+		fmt.Println(string(out))
 	}
-
-	w.Write(out)
-	*/
 }
 
 func main() {
+	go executeTask()
 	router := Router()
 	http.ListenAndServe(":5050", router)
 }
