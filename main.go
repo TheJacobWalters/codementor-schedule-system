@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-redis/redis"
 	"github.com/gorilla/mux"
+	"github.com/robfig/cron"
 )
 
 // Todo going to a function to add a task
@@ -17,6 +18,7 @@ import (
 type Task struct {
 	Command  string
 	Argument string
+	Time     string
 }
 
 var client redis.Client
@@ -39,7 +41,6 @@ func Router() *mux.Router {
 	router := mux.NewRouter()
 	router.HandleFunc("/", index).Methods("GET")
 	router.HandleFunc("/addTask", addTask).Methods("GET")
-	//router.HandleFunc("/executeTask", executeTask).Methods("GET")
 	return router
 }
 
@@ -59,23 +60,32 @@ func addTask(w http.ResponseWriter, r *http.Request) {
 	client.Publish("tasks", string(json))
 }
 
+func executor(command string, argument string, timer string) {
+	c := cron.New()
+	c.AddFunc(timer, func() { out, _ := exec.Command(command, argument).Output(); fmt.Println(string(out)) })
+	c.Start()
+}
+
 func executeTask() {
 	fmt.Println("starting execute task")
 	pubsub := client.PSubscribe("tasks")
 	defer pubsub.Close()
 	ch := pubsub.Channel()
-
 	var task Task
 	for msg := range ch {
 		taskStr := msg.Payload
 		json.Unmarshal([]byte(taskStr), &task)
-		fmt.Printf("Running Command %s %s\n", task.Command, task.Argument)
-		out, err := exec.Command(task.Command, task.Argument).Output()
-		if err != nil {
-			fmt.Println(err)
+		fmt.Printf("Running Command %s %s at time %s \n", task.Command, task.Argument, task.Time)
+		if task.Time != "" {
+			go executor(task.Command, task.Argument, task.Time)
+		} else {
+			out, err := exec.Command(task.Command, task.Argument).Output()
+			if err != nil {
+				fmt.Println(err)
+			}
+			fmt.Println("Results of Task:")
+			fmt.Println(string(out))
 		}
-		fmt.Println("Results of Task:")
-		fmt.Println(string(out))
 	}
 }
 

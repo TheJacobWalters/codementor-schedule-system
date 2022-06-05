@@ -45,20 +45,3 @@ func TestAddTask(t *testing.T) {
 	router.ServeHTTP(response, request)
 	assert.Equal(t, 200, response.Code, "OK response is expected")
 }
-
-/*func TestExecuteTask(t *testing.T) {
-	s := miniredis.RunT(t)
-	s.Set("tasks", "{\"Command\":\"ls\",\"Argument\":\"/tmp\"}")
-	request, _ := http.NewRequest("GET", "/executeTask", nil)
-	response := httptest.NewRecorder()
-	router := Router()
-	router.ServeHTTP(response, request)
-	assert.Equal(t, 200, response.Code, "OK response is expected")
-	body, err := io.ReadAll(response.Body)
-	if err != nil {
-		t.Fail()
-	}
-	assert.Contains(t, string(body), "tmux-1000")
-
-}
-*/
