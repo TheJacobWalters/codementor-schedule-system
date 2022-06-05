@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os/exec"
 	"strconv"
 
 	"github.com/go-redis/redis"
@@ -59,12 +58,16 @@ func addTask(w http.ResponseWriter, r *http.Request) {
 	client.RPush("tasks", string(json))
 }
 
-func executeTask(w http.ResponseWriter, r *http.Request) {
-	if client.LLen("tasks").Val() == 0 {
-		w.Write([]byte("There are no Tasks"))
-		return
-	}
+func executeTask() {
 
+	pubsub := client.PSubscribe("tasks")
+	defer pubsub.Close()
+	ch := pubsub.Channel()
+
+	for msg := range ch {
+		fmt.Println(msg.Channel)
+	}
+	/*pubsub.Channel()
 	taskStr := client.LPop("tasks").Val()
 	var task Task
 	json.Unmarshal([]byte(taskStr), &task)
@@ -74,10 +77,10 @@ func executeTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write(out)
+	*/
 }
 
 func main() {
-
 	router := Router()
 	http.ListenAndServe(":5050", router)
 }
