@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/go-redis/redis"
+	"github.com/gorilla/mux"
 )
 
 // Todo going to a function to add a task
@@ -18,56 +19,65 @@ type Task struct {
 	Argument string
 }
 
-var Tasks []Task
+var client redis.Client
 
-func main() {
-
+func createRedisClient() redis.Client {
 	client := redis.NewClient(&redis.Options{
 		Addr:     "localhost:6379",
 		Password: "",
 		DB:       0,
 	})
+	return *client
+}
 
-	pong, err := client.Ping().Result()
-	fmt.Println(pong, err)
+func index(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("welcome to my program"))
+}
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("welcome to my program"))
-	})
+func Router() *mux.Router {
+	client = createRedisClient()
+	router := mux.NewRouter()
+	router.HandleFunc("/", index).Methods("GET")
+	router.HandleFunc("/addTask", addTask).Methods("GET")
+	router.HandleFunc("/executeTask", executeTask).Methods("GET")
+	return router
+}
 
-	http.HandleFunc("/addTask", func(w http.ResponseWriter, r *http.Request) {
-		query := r.URL.Query()
-		if !query.Has("Command") || !query.Has("Argument") {
-			w.Write([]byte(strconv.FormatBool(query.Has("Command"))))
-			w.Write([]byte(strconv.FormatBool(query.Has("Argument"))))
-			return
-		}
-		task := Task{Command: query.Get("Command"), Argument: query.Get("Argument")}
-		json, err := json.Marshal(task)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		client.RPush("tasks", string(json))
-	})
+func addTask(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+	if !query.Has("Command") || !query.Has("Argument") {
+		w.Write([]byte(strconv.FormatBool(query.Has("Command"))))
+		w.Write([]byte(strconv.FormatBool(query.Has("Argument"))))
+		return
+	}
+	task := Task{Command: query.Get("Command"), Argument: query.Get("Argument")}
+	json, err := json.Marshal(task)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	client.RPush("tasks", string(json))
+}
 
-	http.HandleFunc("/executeTask", func(w http.ResponseWriter, r *http.Request) {
-		if client.LLen("tasks").Val() == 0 {
-			w.Write([]byte("There are no Tasks"))
-			return
-		}
+func executeTask(w http.ResponseWriter, r *http.Request) {
+	if client.LLen("tasks").Val() == 0 {
+		w.Write([]byte("There are no Tasks"))
+		return
+	}
 
-		taskStr := client.LPop("tasks").Val()
-		var task Task
-		json.Unmarshal([]byte(taskStr), &task)
-		out, err := exec.Command(task.Command, task.Argument).Output()
-		if err != nil {
-			fmt.Println(err)
-		}
+	taskStr := client.LPop("tasks").Val()
+	var task Task
+	json.Unmarshal([]byte(taskStr), &task)
+	out, err := exec.Command(task.Command, task.Argument).Output()
+	if err != nil {
+		fmt.Println(err)
+	}
 
-		w.Write(out)
-	})
+	w.Write(out)
+}
 
-	// listen to port
-	http.ListenAndServe(":5050", nil)
+func main() {
+
+	router := Router()
+	http.ListenAndServe(":5050", router)
 }
