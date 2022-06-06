@@ -12,9 +12,6 @@ import (
 	"github.com/robfig/cron"
 )
 
-// Todo going to a function to add a task
-// todo going to add an endpoint to execute the task
-// TODO going to
 type Task struct {
 	Command  string
 	Argument string
@@ -51,7 +48,7 @@ func addTask(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(strconv.FormatBool(query.Has("Argument"))))
 		return
 	}
-	task := Task{Command: query.Get("Command"), Argument: query.Get("Argument")}
+	task := Task{Command: query.Get("Command"), Argument: query.Get("Argument"), Time: query.Get("Time")}
 	json, err := json.Marshal(task)
 	if err != nil {
 		fmt.Println(err)
