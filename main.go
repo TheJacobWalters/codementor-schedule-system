@@ -63,11 +63,17 @@ func executor(command string, argument string, timer string) {
 	c.Start()
 }
 
-func executeTask() {
+// TODO 9 - Separate infinite loop processing into own function (L79 - 94)
+func executeTask(c *redis.Client) {
 	fmt.Println("starting execute task")
-	pubsub := client.PSubscribe("tasks")
+
+	pubsub := c.PSubscribe("tasks")
 	defer pubsub.Close()
+
 	ch := pubsub.Channel()
+
+	// TODO 1 - create array of task statuses
+
 	var task Task
 	for msg := range ch {
 		taskStr := msg.Payload
@@ -75,6 +81,8 @@ func executeTask() {
 		fmt.Printf("Running Command %s %s at time %s \n", task.Command, task.Argument, task.Time)
 		if task.Time != "" {
 			go executor(task.Command, task.Argument, task.Time)
+
+			// TODO 2 - Update array with future execution status
 		} else {
 			out, err := exec.Command(task.Command, task.Argument).Output()
 			if err != nil {
@@ -82,12 +90,16 @@ func executeTask() {
 			}
 			fmt.Println("Results of Task:")
 			fmt.Println(string(out))
+
+			// TODO 3 - Update array with success status for task
 		}
 	}
+
+	// TODO 4 - Return array of task statuses
 }
 
 func main() {
-	go executeTask()
+	go executeTask(&client)
 	router := Router()
 	http.ListenAndServe(":5050", router)
 }

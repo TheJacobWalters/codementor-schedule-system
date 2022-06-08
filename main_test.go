@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-redis/redismock/v8"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -44,4 +45,16 @@ func TestAddTask(t *testing.T) {
 	router := Router()
 	router.ServeHTTP(response, request)
 	assert.Equal(t, 200, response.Code, "OK response is expected")
+}
+
+func TestExecuteTask(t *testing.T) {
+	client, mock := redismock.NewClientMock()
+
+	// TODO 5 - Stub redis responses
+
+	// TODO 6 - Stub executeTask responses
+
+	// TODO 7 - Run test
+
+	// TODO 8 - Compare test response with expected stubbed responses
 }
